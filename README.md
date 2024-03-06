@@ -11,6 +11,6 @@
 `cd KSN`
 `python main_ksn.py`
 
-### 4. Run the MIM_Reasoner algorithm
+### 4. Run the MIM-Reasoner 
 `cd RL_MIM`
 `python main_rl.py`
