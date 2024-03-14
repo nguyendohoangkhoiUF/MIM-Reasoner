@@ -46,14 +46,16 @@ def mckp_constraint_solver(num_layer, chosen, costs, profits, l):
     solver = cp_model.CpSolver()
     status = solver.Solve(model)
 
+    seed_set = []
     budgets = []
     if status == cp_model.OPTIMAL:
         total_cost = 0
         for i in range(n):
             for j in range(1, l + 1):
                 if solver.Value(x[i, j]) == 1:
+                    seed_set.extend(chosen[i][j])
                     budgets.append(costs[i][j])
                     total_cost += costs[i][j]
 
 
-    return budgets
+    return seed_set, budgets

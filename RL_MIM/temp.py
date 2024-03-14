@@ -1,238 +1,61 @@
-# import time
-# import numpy as np
-# import threading
-# from tqdm import tqdm
-#
-#
-# def IC(combined_graph, T, mc=100):
-#     """
-#         The IC() function describing the spread process
-#         Input:
-#             combined_graph: multiplex network
-#             T: set of seed nodes
-#             mc: the number of Monte-Carlo simulations
-#         Output:
-#             np.mean(spread): average number of nodes influenced by the seed nodes
-#             np.array(after_activations): set node status
-#             node_actives: set of active nodes
-#     """
-#
-#     spread = []
-#     after_activations = []
-#     list_node_actives = []
-#
-#     for i in range(mc):
-#         node_actives = set(T[:])  # initialized as a set containing the initial seed nodes T.
-#         after_activation = [0] * len(combined_graph.nodes)
-#         # Simulate propagation process
-#         new_active, A = T[:], T[:]
-#
-#         while new_active:  # Enter a while loop that continues until no new nodes are activated in an iteration.
-#
-#             # For each newly active node, find its neighbors that become activated
-#             new_ones = []
-#             for node in new_active:
-#                 # Determine neighbors that become infected
-#                 neighboring_node = [n for n in combined_graph.neighbors(node)]
-#                 neighboring_node = list(set(neighboring_node) - node_actives)
-#                 success = [False] * len(neighboring_node)
-#
-#                 for j, node_nei in enumerate(neighboring_node):
-#                     p = combined_graph.get_edge_data(node, node_nei)['weight']
-#                     success[j] = np.random.uniform(0, 1) < p
-#
-#                 new_ones += list(np.extract(success, neighboring_node))
-#                 node_actives.update(new_ones)
-#             # Update the set of newly activated nodes
-#             new_active = list(set(new_ones) - set(A))
-#
-#             # Add newly activated nodes to the set of activated nodes
-#             # print(new_active)
-#             A += new_active
-#             for activated_node in A:
-#                 after_activation[activated_node] = 1
-#
-#         # Update the activation status of the seed nodes
-#         for i, s in enumerate(T):
-#             after_activation[s] = 2
-#
-#         spread.append(len(A))
-#         after_activations.append(after_activation)
-#
-#     return np.mean(spread), np.array(after_activations), list_node_actives
-#
-# def Evaluate(combined_graph, T, mc=100):
-#     """
-#         The IC() function describing the spread process
-#         Input:
-#             combined_graph: multiplex network
-#             T: set of seed nodes
-#             mc: the number of Monte-Carlo simulations
-#         Output:
-#             np.mean(spread): average number of nodes influenced by the seed nodes
-#             np.array(after_activations): set node status
-#             node_actives: set of active nodes
-#     """
-#
-#     spread = []
-#     after_activations = []
-#     list_node_actives = []
-#
-#     for i in range(mc):
-#         node_actives = set(T[:])  # initialized as a set containing the initial seed nodes T.
-#         after_activation = [0] * len(combined_graph.nodes)
-#         # Simulate propagation process
-#         new_active, A = T[:], T[:]
-#
-#         while new_active:  # Enter a while loop that continues until no new nodes are activated in an iteration.
-#
-#             # For each newly active node, find its neighbors that become activated
-#             new_ones = []
-#             for node in new_active:
-#                 # Determine neighbors that become infected
-#                 neighboring_node = [n for n in combined_graph.neighbors(node)]
-#                 neighboring_node = list(set(neighboring_node) - node_actives)
-#                 success = [False] * len(neighboring_node)
-#
-#                 for j, node_nei in enumerate(neighboring_node):
-#                     p = combined_graph.get_edge_data(node, node_nei)['weight']
-#                     success[j] = np.random.uniform(0, 1) < p
-#
-#                 new_ones += list(np.extract(success, neighboring_node))
-#                 node_actives.update(new_ones)
-#             # Update the set of newly activated nodes
-#             new_active = list(set(new_ones) - set(A))
-#
-#             # Add newly activated nodes to the set of activated nodes
-#             # print(new_active)
-#             A += new_active
-#             for activated_node in A:
-#                 after_activation[activated_node] = 1
-#
-#         # Update the activation status of the seed nodes
-#         for i, s in enumerate(T):
-#             after_activation[s] = 2
-#         spread.append(len(A))
-#
-#
-#         after_activations.append(after_activation)
-#
-#     return np.mean(spread), np.array(after_activations), list_node_actives
-#
-# def celf(combined_graph, g_i, k, mc=1000):
-#     """
-#         The CELF() function describes the process of finding a seed set
-#         Input:
-#             combined_graph: multiplex network
-#             g_i: graph of the ith layer
-#             k: budget amount
-#             mc: the number of Monte-Carlo simulations
-#         Output:
-#             S: optimal seed set
-#             SPREAD: resulting spread
-#             timelapse: time for each iteration
-#             LOOKUPS: number of spread calculations
-#             data: Collection of node status
-#
-#     """
-#
-#     # --------------------
-#     # Find the first node with greedy algorithm
-#     # --------------------
-#
-#     # Calculate the first iteration sorted list
-#
-#     start_time = time.time()
-#     marg_gain = []
-#     data = None
-#     degrees = dict(combined_graph.degree())
-#     avg_degree = sum(degrees.values()) / len(degrees)
-#
-#     for node in tqdm(g_i.nodes):
-#         degree = combined_graph.degree(node)
-#         if degree < avg_degree:
-#             break
-#         s, at, _ = IC(combined_graph, [node], mc)
-#         marg_gain.append(s)
-#         # data = at
-#         if data is None:
-#             data = at
-#         else:
-#             data = np.concatenate((data, at), axis=0)
-#
-#     # Create the sorted list of nodes and their marginal gain
-#     Q = sorted(zip(g_i.nodes, marg_gain), key=lambda x: x[1], reverse=True)
-#     print(len(Q), len(g_i.nodes))
-#
-#     # Select the first node and remove from candidate list
-#     S, spread, SPREAD = [Q[0][0]], Q[0][1], [Q[0][1]]
-#
-#     Q, LOOKUPS, timelapse = Q[1:], [len(g_i.nodes)], [time.time() - start_time]
-#
-#     # --------------------
-#     # Find the next k-1 nodes using the list-sorting procedure
-#     # --------------------
-#
-#     for _ in tqdm(range(k - 1)):
-#
-#         check, node_lookup = False, 0
-#
-#         while not check:
-#             # Count the number of times the spread is computed
-#             node_lookup += 1
-#
-#             # Recalculate spread of top node
-#             current = Q[0][0]
-#
-#             # Evaluate the spread function and store the marginal gain in the list
-#             s, at, _ = IC(combined_graph, S + [current], mc)
-#             data = np.concatenate((data, at), axis=0)
-#             Q[0] = (current, s - spread)
-#
-#             # Re-sort the list
-#             Q = sorted(Q, key=lambda x: x[1], reverse=True)
-#
-#             # Check if previous top node stayed on top after the sort
-#             check = (Q[0][0] == current)
-#
-#         # Select the next node
-#         spread += Q[0][1]
-#         S.append(Q[0][0])
-#         SPREAD.append(spread)
-#         LOOKUPS.append(node_lookup)
-#         timelapse.append(time.time() - start_time)
-#
-#         # Remove the selected node from the list
-#         Q = Q[1:]
-#
-#     return S, SPREAD, timelapse, LOOKUPS, data
-#
-#
-#
+import csv
+import os
+import pickle
+from model import *
+
+from agent import PPO
+from board_generator import board_generator
+from environment import GraphDreamerEnv
+from mckp import mckp_constraint_solver
+from utils import *
+from warmup import get_seedset
+import argparse
+import warnings
+from copy import deepcopy
+from gcn_good_nodes import finding_good_nodes, training_good_nodes
+from model import *
+import random
+
+parser = argparse.ArgumentParser(description="KSN algorithm")
+parser = argparse.ArgumentParser(description="ISF algorithm")
+datasets = ['Xenopus', 'London', 'ObamaInIsrael2013', 'ParisAttack2015', 'Arabidopsis']
+parser.add_argument("-d", "--dataset", default="Xenopus", type=str,
+                    help="one of: {}".format(", ".join(sorted(datasets))))
+diffusion = ['IC', 'LT', 'SIS']
+parser.add_argument("-dm", "--diffusion_model", default="LT", type=str,
+                    help="one of: {}".format(", ".join(sorted(diffusion))))
+seed_rate = [1, 5, 10, 20]
+parser.add_argument("-sp", "--seed_rate", default=20, type=int,
+                    help="one of: {}".format(", ".join(str(sorted(seed_rate)))))
+mode = ['Normal', 'Budget Constraint']
+parser.add_argument("-m", "--mode", default="normal", type=str,
+                    help="one of: {}".format(", ".join(sorted(mode))))
+
+parser.add_argument("-t", "--thresold", default=0.8, type=float,
+                    help="Clustering threshold")
+
+parser.add_argument("-spd", "--support_decay", default=0.999999, type=float,
+                    help="support factor decay")
+
+parser.add_argument("-tr", "--training", default=False, type=bool,
+                    help="Training")
+
+# RL-Agent
+parser.add_argument("-ep", "--epochs", default=40, type=int, help="K-epochs")
+parser.add_argument("-eps", "--eps_clip", default=0.2, type=float, help="Epsilon clip")
+parser.add_argument("-ga", "--gamma", default=1, type=int, help="Gamma")
+parser.add_argument("-lra", "--lr_actor", default=0.0001, type=float, help="Learning rate actor")
+parser.add_argument("-lrc", "--lr_critic", default=0.001, type=float, help="Learning rate critic")
+
+args = parser.parse_args(args=[])
+
+file_path = '../data/' + args.dataset + '_mean_' + args.diffusion_model + str(10 * args.seed_rate) + '.SG'
+with open(file_path, 'rb') as f:
+    graphs, multiplex = pickle.load(f)
 
 
-# import speech_recognition as sr
-#
-#
-# def audio_to_text(audio_file):
-#     r = sr.Recognizer()
-#
-#     # Mở file audio
-#     with sr.AudioFile(audio_file) as source:
-#         audio = r.record(source)  # Đọc audio từ file
-#
-#     try:
-#         # Nhận dạng giọng nói
-#         text = r.recognize_google(audio, language='vi-VN')
-#         return text
-#     except sr.UnknownValueError:
-#         print("Không thể nhận dạng giọng nói")
-#     except sr.RequestError as e:
-#         print(f"Lỗi trong quá trình gửi yêu cầu đến Speech Recognition service; {e}")
-#
-#     return ""
-#
-#
-# print(audio_to_text(r"F:\Anh Nguyen\Reinforcement Learning\MIM_Reasoner\CTKV 1\FILE CTKV1\1104 , 03.08.2020 , 09h03 , 766666699.wav"))
-
-
+for _ in range(100):
+    S = random.sample(list(multiplex.nodes()), 10)
+    adj_matrix = nx.to_scipy_sparse_array(multiplex, dtype=np.float32, format='csr')
+    current_spread, A = diffusion_evaluation(adj_matrix, S)
+    print(S, current_spread)

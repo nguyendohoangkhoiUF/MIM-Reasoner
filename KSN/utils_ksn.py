@@ -1,71 +1,64 @@
-import time
 import numpy as np
+import networkx as nx
+import ndlib.models.ModelConfig as mc
+import ndlib.models.epidemics as ep
+import time
 from tqdm import tqdm
-from copy import deepcopy
 
 
-def IC(graph, T, mc=100):
-    """
-        The IC() function describing the spread process
-        Input:
-            combined_graph: multiplex network
-            T: set of seed nodes
-            mc: the number of Monte-Carlo simulations
-        Output:
-            np.mean(spread): average number of nodes influenced by the seed nodes
-            np.array(after_activations): set node status
-            node_actives: set of active nodes
-    """
+def diffusion_evaluation(adj_matrix, seed, diffusion='LT'):
 
-    spread = []
-    after_activations = []
-    list_node_actives = []
+    total_infect = 0
+    G = nx.from_scipy_sparse_array(adj_matrix)
+    
+    for i in range(10):
+        
+        if diffusion == 'LT':
+            model = ep.ThresholdModel(G)
+            config = mc.Configuration()
+            for n in G.nodes():
+                config.add_node_configuration("threshold", n, 0.5)
+        elif diffusion == 'IC':
+            model = ep.IndependentCascadesModel(G)
+            config = mc.Configuration()
+            for e in G.edges():
+                config.add_edge_configuration("threshold", e, 1/nx.degree(G)[e[1]])
+        elif diffusion == 'SIS':
+            model = ep.SISModel(G)
+            config = mc.Configuration()
+            config.add_model_parameter('beta', 0.001)
+            config.add_model_parameter('lambda', 0.001)
+        else:
+            raise ValueError('Only IC, LT and SIS are supported.')
 
-    for i in range(mc):
-        node_actives = set(T[:])  # initialized as a set containing the initial seed nodes T.
-        after_activation = [0] * len(graph.nodes)
-        # Simulate propagation process
-        new_active, A = T[:], T[:]
+        config.add_model_initial_configuration("Infected", seed)
 
-        while new_active:  # Enter a while loop that continues until no new nodes are activated in an iteration.
+        model.set_initial_status(config)
 
-            # For each newly active node, find its neighbors that become activated
-            new_ones = []
-            for node in new_active:
-                # Determine neighbors that become infected
-                neighboring_node = [n for n in graph.neighbors(node)]
-                neighboring_node = deepcopy(list(set(neighboring_node) - node_actives))
-                success = [False] * len(neighboring_node)
+        iterations = model.iteration_bunch(2)
 
-                for j, node_nei in enumerate(neighboring_node):
-                    p = graph.get_edge_data(node, node_nei)['weight']
-                    success[j] = np.random.uniform(0, 1) < p
+        node_status = iterations[0]['status']
 
-                new_ones += list(np.extract(success, neighboring_node))
-                node_actives.update(new_ones)
-            # Update the set of newly activated nodes
-            new_active = list(set(new_ones) - set(A))
+        seed_vec = np.array(list(node_status.values()))
 
-            # Add newly activated nodes to the set of activated nodes
-            A += new_active
-            for activated_node in A:
-                after_activation[activated_node] = 1
-
-        # Update the activation status of the seed nodes
-        for i, s in enumerate(T):
-            after_activation[s] = 2
-
-        spread.append(len(A))
-        after_activations.append(after_activation)
-
-    return np.mean(spread), np.array(after_activations), list_node_actives
+        for j in range(1, len(iterations)):
+            node_status.update(iterations[j]['status'])
 
 
-def celf(graph, k, mc=1000):
+        inf_vec = np.array(list(node_status.values()))
+        inf_vec[inf_vec == 2] = 1
+
+        total_infect += inf_vec.sum()
+    
+    return total_infect/10, list(node_status.values())
+
+
+
+def celf(combined_graph, graph, k, diffusion='LT'):
     """
         The CELF() function describes the process of finding a seed set
         Input:
-            graph: Graph belongs to any layer
+            graph: graph network
             k: budget amount
             mc: the number of Monte-Carlo simulations
         Output:
@@ -88,15 +81,15 @@ def celf(graph, k, mc=1000):
     data = None
 
     for node in tqdm(graph.nodes()):
-        s, at, _ = IC(graph, [node], mc)
-        marg_gain.append(s)
+        adj_matrix = nx.to_scipy_sparse_array(combined_graph, dtype=np.float32, format='csr')
+        infect, node_status = diffusion_evaluation(adj_matrix, [node], diffusion)
+        marg_gain.append(infect)
 
     # Create the sorted list of nodes and their marginal gain
     Q = sorted(zip(graph.nodes, marg_gain), key=lambda x: x[1], reverse=True)
 
     # Select the first node and remove from candidate list
     S, spread, SPREAD = [Q[0][0]], Q[0][1], [Q[0][1]]
-
     Q, LOOKUPS, timelapse = Q[1:], [len(graph.nodes)], [time.time() - start_time]
 
     # --------------------
@@ -108,6 +101,7 @@ def celf(graph, k, mc=1000):
         check, node_lookup = False, 0
 
         if len(Q) > 0:
+
             while not check:
                 # Count the number of times the spread is computed
                 node_lookup += 1
@@ -116,9 +110,9 @@ def celf(graph, k, mc=1000):
                 current = Q[0][0]
 
                 # Evaluate the spread function and store the marginal gain in the list
-                s, at, _ = IC(graph, S + [current], mc)
-
-                Q[0] = (current, s - spread)
+                infect, node_status = diffusion_evaluation(adj_matrix, S + [current], diffusion)
+                marg_gain.append(infect)
+                Q[0] = (current, infect - spread)
 
                 # Re-sort the list
                 Q = sorted(Q, key=lambda x: x[1], reverse=True)

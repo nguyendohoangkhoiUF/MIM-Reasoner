@@ -1,8 +1,10 @@
 import torch
+from utils import *
+from copy import  deepcopy
 
 
 class GraphDreamerEnv(object):
-    def __init__(self, combined_graph, budget, S, spread, mc=1):
+    def __init__(self, combined_graph, budget, S, support_decay, spread, mc=1):
         self.combined_graph = combined_graph  # multiplex network
         self.budget = budget  # budget amount
         self.mc = mc  # the number of Monte-Carlo simulations
@@ -14,7 +16,7 @@ class GraphDreamerEnv(object):
         self.state = None  # The state is represented as an array with the number of elements equal to the budget provided, where each element corresponds to a selected seed node.
         self.num_step = None  # number of steps
         self.reward = None  # reward
-
+        self.support_decay = support_decay  #0.999999
         self.activation_node = [[] for _ in
                                 range(self.mc)]  # The status of the activated nodes in each Monte Carlo simulation run.
         self.maximum_reward = spread  # Biggest Reward currently.
@@ -51,26 +53,32 @@ class GraphDreamerEnv(object):
 
         self.seed_node.add(action)
         S = list(self.seed_node)
+
+        adj_matrix = nx.to_scipy_sparse_array(self.combined_graph, dtype=np.float32, format='csr')
+        current_spread, A = diffusion_evaluation(adj_matrix, S)
+
         # current_spread, at, A = IC_rl(deepcopy(self.combined_graph), S, self.activation_node, mc=self.mc)
         self.activation_node = A
 
-        if 0 < self.support_factor:
-            support_mode = 1
-        else:
-            support_mode = 0
-
-        if support_mode == 1:
-            self.reward = - ((action - self.best_action[self.num_step - 1]) / self.num_nodes_graph) ** 2
-            if action == self.best_action[self.num_step - 1]:
-                self.reward += 0.1 * self.num_nodes_graph
-        else:
-            self.reward = ((current_spread - self.previous_spread) / self.num_nodes_graph) ** 2
-            self.previous_spread = current_spread
-            if current_spread >= self.best_spread_of_this_step[
-                self.num_step - 1] and action not in self.best_action_so_far[
-                                                     :self.num_step - 1]:
-                self.best_spread_of_this_step[self.num_step - 1] = current_spread
-                self.reward += current_spread
-                self.best_action_so_far[self.num_step - 1] = action
+        # if 0.1 < self.support_factor:
+        #     support_mode = 1
+        #     self.support_factor = self.support_factor*self.support_decay
+        # else:
+        #     support_mode = 0
+        #
+        # if support_mode == 1:
+        #     self.reward = - ((action - self.best_action[self.num_step - 1]) / self.num_nodes_graph) ** 2
+        #     if action == self.best_action[self.num_step - 1]:
+        #         self.reward += 0.1 * self.num_nodes_graph
+        # else:
+        if self.num_step == self.budget:
+            self.reward = current_spread
+        self.previous_spread = current_spread
+        # if current_   spread >= self.best_spread_of_this_step[
+        #     self.num_step - 1] and action not in self.best_action_so_far[
+        #                                          :self.num_step - 1]:
+        #     self.best_spread_of_this_step[self.num_step - 1] = current_spread
+        #     self.reward += current_spread
+        #     self.best_action_so_far[self.num_step - 1] = action
 
         return self.state, self.reward, self.done, self.mask, current_spread

@@ -1,18 +1,17 @@
-from utils_ksn import *
+from utils import *
 from multiprocessing import Process, Manager
 
 
-def profit(graph_i, i, good_node, j, mc_c, results):
-    S, SPREAD, timelapse, LOOKUPS, data = celf(graph_i, good_node, j, mc_c)
+def profit(combined_graph, graph_i, good_nodes, i, j, results, diffusion='LT'):
+    S, SPREAD, _, _, _ = celf(combined_graph, graph_i, good_nodes, j, diffusion)
     results[i] = [S, SPREAD]
 
 
-def board_generator(graphs, good_nodes, l, mc=1000):
+def board_generator(combined_graph, graphs, good_nodes, l, diffusion='LT'):
     """
         The board_generator() to query chosen, costs, profits information to use as input for MCKP
         Input:
             graphs: list of graphs
-            good_nodes:  good nodes
             l: Budget constraint (integer)
             mc: the number of Monte-Carlo simulations
         Output:
@@ -28,7 +27,7 @@ def board_generator(graphs, good_nodes, l, mc=1000):
 
     for i in range(len(graphs)):
         graph_i = graphs[i]
-        p = Process(target=profit, args=(graph_i, i, good_nodes[i], l, mc, results))
+        p = Process(target=profit, args=(combined_graph, graph_i, good_nodes, i, l, results, diffusion))
         processes.append(p)
         p.start()
 

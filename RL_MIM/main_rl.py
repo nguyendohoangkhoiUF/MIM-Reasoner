@@ -7,101 +7,107 @@ from agent import PPO
 from board_generator import board_generator
 from environment import GraphDreamerEnv
 from mckp import mckp_constraint_solver
-from utils_ksn import *
+from utils import *
 from warmup import get_seedset
 import argparse
 import warnings
-
+from copy import deepcopy
+from gcn_good_nodes import finding_good_nodes, training_good_nodes
+from model import *
 warnings.filterwarnings("ignore")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="KSN algorithm")
-    datasets = ['Data', 'facebook-twitter']
-    parser.add_argument("-d", "--dataset", default="Data", type=str,
+    parser = argparse.ArgumentParser(description="ISF algorithm")
+    datasets = ['Xenopus', 'London', 'ObamaInIsrael2013', 'ParisAttack2015', 'Arabidopsis']
+    parser.add_argument("-d", "--dataset", default="Xenopus", type=str,
                         help="one of: {}".format(", ".join(sorted(datasets))))
-    num_node = [600, 5000]
-    parser.add_argument("-nn", "--num_node", default=600, type=int,
-                        help="one of: {}".format(", ".join(str(sorted(num_node)))))
-    num_layer = [3, 4, 5, 6, 7, 8, 9]
-    parser.add_argument("-nl", "--num_layer", default=3, type=int,
-                        help="one of: {}".format(", ".join(str(sorted(num_layer)))))
-    overlaping_user = [30, 50, 70]
-    parser.add_argument("-ou", "--overlaping_user", default=30, type=int,
-                        help="one of: {}".format(", ".join(str(sorted(overlaping_user)))))
-    budgets = [10, 20, 30]
-    parser.add_argument("-b", "--budget", default=30, type=int,
-                        help="one of: {}".format(", ".join(str(sorted(budgets)))))
-
-    parser.add_argument("-m", "--mc", default=30, type=int,
-                        help="the number of Monte-Carlo simulations")
+    diffusion = ['IC', 'LT', 'SIS']
+    parser.add_argument("-dm", "--diffusion_model", default="LT", type=str,
+                        help="one of: {}".format(", ".join(sorted(diffusion))))
+    seed_rate = [1, 5, 10, 20]
+    parser.add_argument("-sp", "--seed_rate", default=5, type=int,
+                        help="one of: {}".format(", ".join(str(sorted(seed_rate)))))
+    mode = ['Normal', 'Budget Constraint']
+    parser.add_argument("-m", "--mode", default="normal", type=str,
+                        help="one of: {}".format(", ".join(sorted(mode))))
 
     parser.add_argument("-t", "--thresold", default=0.8, type=float,
                         help="Clustering threshold")
+
+    parser.add_argument("-spd", "--support_decay", default=0.9999, type=float,
+                        help="support factor decay")
+    
+    parser.add_argument("-tr", "--training", default=False, type=bool,
+                        help="Training")
 
     # RL-Agent
     parser.add_argument("-ep", "--epochs", default=40, type=int, help="K-epochs")
     parser.add_argument("-eps", "--eps_clip", default=0.2, type=float, help="Epsilon clip")
     parser.add_argument("-ga", "--gamma", default=1, type=int, help="Gamma")
     parser.add_argument("-lra", "--lr_actor", default=0.0001, type=float, help="Learning rate actor")
-    parser.add_argument("-lrc", "--lr_critic", default=0.001, type=float, help="Learning rate critic")
+    parser.add_argument("-lrc", "--lr_critic", default=0.003, type=float, help="Learning rate critic")
 
     args = parser.parse_args(args=[])
 
-    file_path = '../Dataset/' + args.dataset + '/graph_' + str(args.num_node) + '_node_' + str(args.num_layer) + \
-                '_layer_' + str(args.overlaping_user) + '_overlaping_user.pickle'
+    file_path = '../data/' + args.dataset + '_mean_' + args.diffusion_model + str(10*args.seed_rate) + '.SG'
+    with open(file_path, 'rb') as f:
+        graphs, multiplex = pickle.load(f)
 
     file_name = os.path.splitext(os.path.basename(file_path))[0]
-    with open(file_path, 'rb') as file:
-        data = pickle.load(file)
-
-    graphs = data[0]
-    combined_graph = data[1]
-
     # ranking graph
     graphs = sorted(graphs, key=lambda graph: (graph.number_of_nodes(), graph.number_of_edges()))
+    # node attribute
+    for node in multiplex.nodes():
+        multiplex.nodes[node]['attribute'] = 1.0
 
     start_time = time.time()
-    good_nodes = []
+    
+    # Good Nodes
+    good_nodes = list(multiplex.nodes()) 
+    if args.training:
+        print("Training")
+        model_path = training_good_nodes(multiplex, diffusion=args.diffusion_model)
+        good_nodes = finding_good_nodes("model.pth", multiplex)
+    #     print(good_nodessss) 
+    # exit()
+    
+    
+    budget = int(multiplex.number_of_nodes() * args.seed_rate * 0.01)
 
-    gat = GAT(input_size=50)
-    gat.load_state_dict(torch.load("../GCN-finding-good-nodes/model.pth"))
-    gat.eval()
+    chosen, costs, profits = board_generator(deepcopy(multiplex), graphs, good_nodes, l=budget, diffusion=args.diffusion_model)
+    # print("Chosen", chosen)
+    # print("Costs", costs)
+    # print("Profits", profits)
+    seed_set, budget_layers = mckp_constraint_solver(len(graphs), chosen, costs, profits, l=budget)
+    budget_layers[-1] += budget - np.sum(budget_layers)
+    
+    for node in multiplex.nodes():
+        multiplex.nodes[node]['attribute'] = 1.0
+        
+    seed_set = get_seedset(deepcopy(multiplex), graphs, good_nodes, budget_layers, args.thresold, diffusion=args.diffusion_model)
+    adj_matrix = nx.to_scipy_sparse_array(deepcopy(multiplex), dtype=np.float32, format='csr')
+    spread, after_activations = diffusion_evaluation(adj_matrix, seed_set, diffusion=args.diffusion_model)
 
-    for graph in graphs:
-        g_node = eval_node_classifier(gat, graph)
-        good_nodes.append(g_node)
-
-    g_node = eval_node_classifier(gat, combined_graph)
-    good_nodes.append(g_node)
-
-    chosen, costs, profits = board_generator(graphs, good_nodes, l=args.budget, mc=args.mc)
-    budget_layers = mckp_constraint_solver(len(graphs), chosen, costs, profits, l=args.budget)
-    budget_layers[-1] += args.budget - np.sum(budget_layers)
-
-    print(budget_layers)
-    seed_set = get_seedset(combined_graph, graphs, budget_layers, good_nodes, args.thresold, mc=args.mc)
-
-    spread, after_activations, list_node_actives = IC(combined_graph, seed_set, args.mc)
-
+    
     ####### initialize environment hyperparameters ######
-
     env_name = "MIM_Reasoner"
-    env = GraphDreamerEnv(combined_graph, args.budget, seed_set, spread, 1)
-    max_ep_len = args.budget  # max timesteps in one episode
+    env = GraphDreamerEnv(multiplex, budget, seed_set, args.support_decay, spread, 1)
+    max_ep_len = budget  # max timesteps in one episode
     max_training_timesteps = int(
-        len(combined_graph.nodes) * 25)  # break training loop if timeteps > max_training_timesteps
+        len(multiplex.nodes) * 250)  # break training loop if timeteps > max_training_timesteps
 
     print_freq = max_ep_len * 4  # print avg reward in the interval (in num timesteps)
     log_freq = max_ep_len * 2  # log avg reward in the interval (in num timesteps)
     save_model_freq = int(2e3)  # save model frequency (in num timesteps)
-    update_timestep = max_ep_len * 20  # update policy every n timesteps
+    update_timestep = max_ep_len *20 # update policy every n timesteps
     print("training environment name : " + env_name)
 
     random_seed = 0
     early_stopping = True
     # initialize a PPO agent
-    state_dim = args.budget + 1
-    action_dim = len(combined_graph.nodes)
+    state_dim = budget + 1
+    action_dim = len(multiplex.nodes)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     ppo_agent = PPO(state_dim, action_dim, args.lr_actor, args.lr_critic, args.gamma, args.epochs, args.eps_clip,
                     max_training_timesteps, device=device)
@@ -178,7 +184,7 @@ if __name__ == '__main__':
     # training loop
     predicted_seed = []
     success_rate = 0
-    support_factor = 0.5
+
 
     while time_step <= max_training_timesteps and early_stopping == True:
 
@@ -201,6 +207,7 @@ if __name__ == '__main__':
 
             # update PPO agent
             if time_step % update_timestep == 0:
+                print("Update model !!")
                 predicted_seed, best_spread_rl = evaluate_performance(predicted_seed)
                 ppo_agent.update(predicted_seed, best_found_seed)
                 predicted_seed = []
@@ -223,10 +230,10 @@ if __name__ == '__main__':
                 print_avg_reward = print_running_reward / print_running_episodes
                 print_avg_reward = round(print_avg_reward, 2)
                 predicted_seed, best_spread_rl = evaluate_performance(predicted_seed)
-                print("Episode : {} \t Timestep : {} \t Average Reward : {}"
+                print("Episode : {} \t Timestep : {} \t Average Reward : {} \t Current Spread : {}"
                       " \t Current Predicted Seed : {} \t"
                       " \t RL Best Found Seed : {} \t "
-                      " Support_factor : {}".format(i_episode, time_step, print_avg_reward, predicted_seed,
+                      " Support_factor : {}".format(i_episode, time_step, print_avg_reward, best_spread_rl, predicted_seed,
                                                     best_found_seed,
                                                     round(env.support_factor, 2)))
 
@@ -269,18 +276,26 @@ if __name__ == '__main__':
 
     ################################### Store results to file ###################################
     save_time = time.time() - start_time
+    
+    adj_matrix = nx.to_scipy_sparse_array(deepcopy(multiplex), dtype=np.float32, format='csr')
+    spread, after_activations = diffusion_evaluation(adj_matrix, seed_set, diffusion=args.diffusion_model)
+
+    print("Time", save_time)
+    print("Seed set", seed_set)
+    print("Budget", budget)
+    print("Spread", spread)
 
     output_path = os.path.join('..', 'Output', file_name + '.csv')
 
     if not os.path.exists(output_path):
         data = [
-            ["algorithm", "Nodes", "Edges", "Layer", "Budget", "Seed set", "Spread", "Tỉme"],
-            ["RL_MIM", len(combined_graph.nodes), len(combined_graph.edges), len(graphs), args.budget, seed_set, spread,
+            ["algorithm", "Nodes", "Edges", "Layer", "Budget", "Diffusion", "Seed set", "Spread", "Tỉme"],
+            ["RL_MIM", len(multiplex.nodes), len(multiplex.edges), len(graphs), args.seed_rate, args.diffusion_model, seed_set, spread,
              save_time]
         ]
     else:
         data = [
-            ["RL_MIM", len(combined_graph.nodes), len(combined_graph.edges), len(graphs), args.budget, seed_set, spread,
+            ["RL_MIM", len(multiplex.nodes), len(multiplex.edges), len(graphs), args.seed_rate, args.diffusion_model, seed_set, spread,
              save_time]
         ]
 

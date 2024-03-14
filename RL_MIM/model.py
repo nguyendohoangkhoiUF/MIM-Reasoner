@@ -3,6 +3,11 @@ import torch.nn as nn
 from torch.distributions import Categorical
 import numpy as np
 import copy
+import torch
+from torch.nn import Dropout
+from torch_geometric.nn import GATv2Conv, GCNConv
+import torch.nn.functional as F
+import torch.nn as nn
 
 
 class ActorCritic(nn.Module):
@@ -70,59 +75,21 @@ class ActorCritic(nn.Module):
         return action_logprobs, state_values, dist_entropy
 
 
-import torch
-
-from torch_geometric.nn import GATv2Conv
-import torch.nn.functional as F
-
-
 class GAT(torch.nn.Module):
-    def __init__(self, input_size, hidden_dim1=256, hidden_dim2=256, heads=4):
+    def __init__(self, input_size, hidden_dim1=128, hidden_dim2=128, heads=4):
         super().__init__()
         self.input_size = input_size
-        self.gat1 = GATv2Conv(input_size, hidden_dim1, heads=heads)
-        self.gat2 = GATv2Conv(hidden_dim1 * heads, hidden_dim2, heads=heads)
-        self.gat3 = GATv2Conv(hidden_dim2 * heads, 2, heads=heads)
-
+        self.conv1 = GCNConv(input_size, hidden_dim1)
+        self.conv2 = GCNConv(hidden_dim1, hidden_dim2)
+        self.conv3 = GCNConv(hidden_dim2, 2)
+        
     def forward(self, x, edge_index):
         x = x.to(torch.float)
-        x = self.gat1(x, edge_index)
+        x = self.conv1(x, edge_index)
         x = F.elu(x)
-        x = self.gat2(x, edge_index)
+        x = self.conv2(x, edge_index)
         x = F.elu(x)
-        x = self.gat3(x, edge_index)
+        x = self.conv3(x, edge_index)
         output = F.log_softmax(x, dim=1)
 
         return output
-
-
-import torch
-from karateclub import DeepWalk
-
-
-def get_embeddings(graph, dimensions):
-    model = DeepWalk(dimensions=dimensions)
-    model.fit(graph)
-    embedding = model.get_embedding()
-    return embedding
-
-
-def get_data(graph, dimensions):
-    embedding = get_embeddings(graph, dimensions)
-
-    edge_list = list(graph.edges)
-    edge_index = torch.tensor(edge_list).t().contiguous()
-
-    return torch.tensor(embedding), edge_index
-
-
-def eval_node_classifier(model, graph, dimensions=50):
-    embedding, edge_index = get_data(graph, dimensions)
-    model.eval()
-    pred = model(embedding, edge_index).argmax(dim=1)
-    good_node = []
-    for i, item in enumerate(pred):
-        if item == 1:
-            good_node.append(i)
-
-    return good_node
