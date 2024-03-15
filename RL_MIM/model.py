@@ -76,13 +76,13 @@ class ActorCritic(nn.Module):
 
 
 class GAT(torch.nn.Module):
-    def __init__(self, input_size, hidden_dim1=128, hidden_dim2=128, heads=4):
+    def __init__(self, input_size, hidden_dim1=128, hidden_dim2=128):
         super().__init__()
         self.input_size = input_size
         self.conv1 = GCNConv(input_size, hidden_dim1)
         self.conv2 = GCNConv(hidden_dim1, hidden_dim2)
         self.conv3 = GCNConv(hidden_dim2, 2)
-        
+
     def forward(self, x, edge_index):
         x = x.to(torch.float)
         x = self.conv1(x, edge_index)
