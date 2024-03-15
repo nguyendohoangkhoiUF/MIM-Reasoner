@@ -1,13 +1,14 @@
 import torch
 from utils import *
-from copy import  deepcopy
+from copy import deepcopy
 
 
 class GraphDreamerEnv(object):
-    def __init__(self, combined_graph, budget, S, support_decay, spread, mc=1):
+    def __init__(self, combined_graph, budget, S, good_nodes, support_decay, spread, mc=1):
         self.combined_graph = combined_graph  # multiplex network
         self.budget = budget  # budget amount
         self.mc = mc  # the number of Monte-Carlo simulations
+        self.good_nodes = good_nodes
 
         self.num_nodes_graph = len(self.combined_graph.nodes)  # number of nodes
         self.mask = None  # The mask marks the selected nodes
@@ -16,7 +17,7 @@ class GraphDreamerEnv(object):
         self.state = None  # The state is represented as an array with the number of elements equal to the budget provided, where each element corresponds to a selected seed node.
         self.num_step = None  # number of steps
         self.reward = None  # reward
-        self.support_decay = support_decay  #0.999999
+        self.support_decay = support_decay  # 0.999999
         self.activation_node = [[] for _ in
                                 range(self.mc)]  # The status of the activated nodes in each Monte Carlo simulation run.
         self.maximum_reward = spread  # Biggest Reward currently.
@@ -30,7 +31,10 @@ class GraphDreamerEnv(object):
         if mode == 'change_graph':
             self.combined_graph = None
 
-        self.mask = torch.zeros(len(self.combined_graph.nodes))
+        self.mask = torch.ones(len(self.combined_graph.nodes))
+        for node_x in self.good_nodes:
+            self.mask[node_x] = 0
+
         self.state = torch.zeros(self.budget + 1)
         self.seed_node = set()
         self.done = False

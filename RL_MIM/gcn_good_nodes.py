@@ -5,6 +5,8 @@ import torch
 
 import torch.nn as nn
 from model import GAT
+import random
+import pandas as pd
 
 
 def eval_node_classifier(model, att, edge_index, labels):
@@ -14,31 +16,32 @@ def eval_node_classifier(model, att, edge_index, labels):
     acc = int(correct) / len(labels)
 
     return acc
-    
-def training_good_nodes(multiplex, dimensions = 50, n_epochs = 1000, model_path = "model.pth", diffusion="LT"):
-  
+
+
+def get_label(multiplex, graphs, budget_layers):
+    labels = [0 for _ in multiplex.nodes]
+    for i, graph in enumerate(graphs):
+        degrees = {node: 0 for node in graph.nodes}
+        for node in graph.nodes():
+            degrees[node] = graph.degree(node)
+
+        degrees = list(dict(sorted(degrees.items(), key=lambda x: x[1])))
+        for de in degrees[:int(budget_layers[i])]:
+            labels[de] = 1
+
+    return labels
+
+
+def training_good_nodes(multiplex, graphs, budget_layers, dimensions=50, n_epochs=3000, model_path="model.pth"):
     model = DeepWalk(dimensions=dimensions)
     model.fit(multiplex)
     embedding = model.get_embedding()
 
-
-    degrees = {node:0 for node in multiplex.nodes}
-    for node in multiplex.nodes():
-        adj_matrix = nx.to_scipy_sparse_array(multiplex, dtype=np.float32, format='csr')
-        infect, _ = diffusion_evaluation(adj_matrix, [node], diffusion)
-        degrees[node] = multiplex.degree[node]
-
-
-    degrees = list(dict(sorted(degrees.items(), key=lambda x: x[1])))
-
-    labels = [0 for node in multiplex.nodes]
-    for de in degrees[:int(0.2 * len(multiplex.nodes))]:
-        labels[de] = 1
-        
+    labels = get_label(multiplex, graphs, budget_layers)
     embedding = torch.tensor(embedding).to("cuda")
     edge_index = torch.tensor(list(multiplex.edges)).t().contiguous().to("cuda")
     labels = torch.tensor(labels).to("cuda")
-    
+
     gcn = GAT(input_size=dimensions).to("cuda")
     optimizer = torch.optim.Adam(gcn.parameters(), lr=0.001, weight_decay=5e-8)
     criterion = nn.CrossEntropyLoss()
@@ -56,33 +59,30 @@ def training_good_nodes(multiplex, dimensions = 50, n_epochs = 1000, model_path 
 
         if epoch % 10 == 0:
             print(f'Epoch: {epoch:03d}, Train Loss: {loss:.3f}, Val Acc: {acc:.3f}')
-    
-    
-    torch.save(gcn.state_dict(), model_path)
-    
-    return model_path
 
-def finding_good_nodes(model_path, multiplex, dimensions = 50):
+    torch.save(gcn.state_dict(), model_path)
+
+
+def finding_good_nodes(model_path, multiplex, dimensions=50):
     model = DeepWalk(dimensions=dimensions)
     model.fit(multiplex)
     embedding = model.get_embedding()
-    
+
     embedding = torch.tensor(embedding).to("cuda")
     edge_index = torch.tensor(list(multiplex.edges)).t().contiguous().to("cuda")
-    
+
     gcn = GAT(input_size=dimensions).to("cuda")
     gcn.load_state_dict(torch.load(model_path))
-    
+
     gcn.eval()
     out = gcn(embedding, edge_index)
-    
+
     indices = list(np.where(out.argmax(dim=1).cpu().numpy() == 1)[0])
-    
+
     return indices
 
 
-  
 
 
-    
-    
+
+

@@ -14,6 +14,7 @@ import warnings
 from copy import deepcopy
 from gcn_good_nodes import finding_good_nodes, training_good_nodes
 from model import *
+
 warnings.filterwarnings("ignore")
 
 if __name__ == '__main__':
@@ -37,9 +38,9 @@ if __name__ == '__main__':
 
     parser.add_argument("-spd", "--support_decay", default=0.9999, type=float,
                         help="support factor decay")
-    
-    parser.add_argument("-tr", "--training", default=False, type=bool,
-                        help="Training")
+
+    parser.add_argument("-tr", "--training", default=True, type=bool,
+                        help="Training Good Nodes")
 
     # RL-Agent
     parser.add_argument("-ep", "--epochs", default=40, type=int, help="K-epochs")
@@ -50,7 +51,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args(args=[])
 
-    file_path = '../data/' + args.dataset + '_mean_' + args.diffusion_model + str(10*args.seed_rate) + '.SG'
+    file_path = '../data/' + args.dataset + '_mean_' + args.diffusion_model + str(10 * args.seed_rate) + '.SG'
     with open(file_path, 'rb') as f:
         graphs, multiplex = pickle.load(f)
 
@@ -60,39 +61,42 @@ if __name__ == '__main__':
     # node attribute
     for node in multiplex.nodes():
         multiplex.nodes[node]['attribute'] = 1.0
-
-    start_time = time.time()
-    
-    # Good Nodes
-    good_nodes = list(multiplex.nodes()) 
-    if args.training:
-        print("Training")
-        model_path = training_good_nodes(multiplex, diffusion=args.diffusion_model)
-        good_nodes = finding_good_nodes("model.pth", multiplex)
-    #     print(good_nodessss) 
-    # exit()
-    
-    
     budget = int(multiplex.number_of_nodes() * args.seed_rate * 0.01)
 
-    chosen, costs, profits = board_generator(deepcopy(multiplex), graphs, good_nodes, l=budget, diffusion=args.diffusion_model)
-    # print("Chosen", chosen)
-    # print("Costs", costs)
-    # print("Profits", profits)
+    start_time = time.time()
+
+    chosen, costs, profits = board_generator(deepcopy(multiplex), graphs, list(multiplex.nodes()), l=budget,
+                                             diffusion=args.diffusion_model)
     seed_set, budget_layers = mckp_constraint_solver(len(graphs), chosen, costs, profits, l=budget)
     budget_layers[-1] += budget - np.sum(budget_layers)
-    
-    for node in multiplex.nodes():
-        multiplex.nodes[node]['attribute'] = 1.0
-        
-    seed_set = get_seedset(deepcopy(multiplex), graphs, good_nodes, budget_layers, args.thresold, diffusion=args.diffusion_model)
     adj_matrix = nx.to_scipy_sparse_array(deepcopy(multiplex), dtype=np.float32, format='csr')
     spread, after_activations = diffusion_evaluation(adj_matrix, seed_set, diffusion=args.diffusion_model)
 
-    
+    print("Huyen", len(multiplex.nodes))
+    if args.training:
+        print("Training")
+        model_path = "model.pkl"
+        training_good_nodes(deepcopy(multiplex), graphs, budget_layers, model_path=model_path)
+
+    good_nodes = finding_good_nodes(model_path, deepcopy(multiplex))
+    for graph in graphs:
+        good_nodes.append(list(graph.nodes())[0])
+    good_nodes.extend(seed_set)
+    good_nodes = sorted(set(good_nodes))
+
+    print("Len Good Nodes: ", len(good_nodes))
+
+    for node in multiplex.nodes():
+        multiplex.nodes[node]['attribute'] = 1.0
+
+    seed_set = get_seedset(deepcopy(multiplex), graphs, deepcopy(good_nodes), budget_layers, args.thresold,
+                           diffusion=args.diffusion_model)
+    adj_matrix = nx.to_scipy_sparse_array(deepcopy(multiplex), dtype=np.float32, format='csr')
+    spread, after_activations = diffusion_evaluation(adj_matrix, seed_set, diffusion=args.diffusion_model)
+
     ####### initialize environment hyperparameters ######
     env_name = "MIM_Reasoner"
-    env = GraphDreamerEnv(multiplex, budget, seed_set, args.support_decay, spread, 1)
+    env = GraphDreamerEnv(multiplex, budget, seed_set, good_nodes, args.support_decay, spread, 1)
     max_ep_len = budget  # max timesteps in one episode
     max_training_timesteps = int(
         len(multiplex.nodes) * 250)  # break training loop if timeteps > max_training_timesteps
@@ -100,7 +104,7 @@ if __name__ == '__main__':
     print_freq = max_ep_len * 4  # print avg reward in the interval (in num timesteps)
     log_freq = max_ep_len * 2  # log avg reward in the interval (in num timesteps)
     save_model_freq = int(2e3)  # save model frequency (in num timesteps)
-    update_timestep = max_ep_len *20 # update policy every n timesteps
+    update_timestep = max_ep_len * 20  # update policy every n timesteps
     print("training environment name : " + env_name)
 
     random_seed = 0
@@ -185,7 +189,6 @@ if __name__ == '__main__':
     predicted_seed = []
     success_rate = 0
 
-
     while time_step <= max_training_timesteps and early_stopping == True:
 
         state, mask, done = env.reset('nothing')
@@ -233,7 +236,8 @@ if __name__ == '__main__':
                 print("Episode : {} \t Timestep : {} \t Average Reward : {} \t Current Spread : {}"
                       " \t Current Predicted Seed : {} \t"
                       " \t RL Best Found Seed : {} \t "
-                      " Support_factor : {}".format(i_episode, time_step, print_avg_reward, best_spread_rl, predicted_seed,
+                      " Support_factor : {}".format(i_episode, time_step, print_avg_reward, best_spread_rl,
+                                                    predicted_seed,
                                                     best_found_seed,
                                                     round(env.support_factor, 2)))
 
@@ -276,7 +280,7 @@ if __name__ == '__main__':
 
     ################################### Store results to file ###################################
     save_time = time.time() - start_time
-    
+
     adj_matrix = nx.to_scipy_sparse_array(deepcopy(multiplex), dtype=np.float32, format='csr')
     spread, after_activations = diffusion_evaluation(adj_matrix, seed_set, diffusion=args.diffusion_model)
 
@@ -290,12 +294,14 @@ if __name__ == '__main__':
     if not os.path.exists(output_path):
         data = [
             ["algorithm", "Nodes", "Edges", "Layer", "Budget", "Diffusion", "Seed set", "Spread", "Tỉme"],
-            ["RL_MIM", len(multiplex.nodes), len(multiplex.edges), len(graphs), args.seed_rate, args.diffusion_model, seed_set, spread,
+            ["RL_MIM", len(multiplex.nodes), len(multiplex.edges), len(graphs), args.seed_rate, args.diffusion_model,
+             seed_set, spread,
              save_time]
         ]
     else:
         data = [
-            ["RL_MIM", len(multiplex.nodes), len(multiplex.edges), len(graphs), args.seed_rate, args.diffusion_model, seed_set, spread,
+            ["RL_MIM", len(multiplex.nodes), len(multiplex.edges), len(graphs), args.seed_rate, args.diffusion_model,
+             seed_set, spread,
              save_time]
         ]
 
