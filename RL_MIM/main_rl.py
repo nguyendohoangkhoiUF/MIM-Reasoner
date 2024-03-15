@@ -45,9 +45,9 @@ if __name__ == '__main__':
     # RL-Agent
     parser.add_argument("-ep", "--epochs", default=40, type=int, help="K-epochs")
     parser.add_argument("-eps", "--eps_clip", default=0.2, type=float, help="Epsilon clip")
-    parser.add_argument("-ga", "--gamma", default=1, type=int, help="Gamma")
-    parser.add_argument("-lra", "--lr_actor", default=0.0001, type=float, help="Learning rate actor")
-    parser.add_argument("-lrc", "--lr_critic", default=0.003, type=float, help="Learning rate critic")
+    parser.add_argument("-ga", "--gamma", default=0.99, type=int, help="Gamma")
+    parser.add_argument("-lra", "--lr_actor", default=0.001, type=float, help="Learning rate actor")
+    parser.add_argument("-lrc", "--lr_critic", default=0.001, type=float, help="Learning rate critic")
 
     args = parser.parse_args(args=[])
 
