@@ -36,7 +36,7 @@ if __name__ == '__main__':
     parser.add_argument("-t", "--thresold", default=0.8, type=float,
                         help="Clustering threshold")
 
-    parser.add_argument("-spd", "--support_decay", default=0.9999, type=float,
+    parser.add_argument("-spd", "--support_decay", default=0.99999, type=float,
                         help="support factor decay")
 
     parser.add_argument("-tr", "--training", default=False, type=bool,
@@ -45,9 +45,9 @@ if __name__ == '__main__':
     # RL-Agent
     parser.add_argument("-ep", "--epochs", default=40, type=int, help="K-epochs")
     parser.add_argument("-eps", "--eps_clip", default=0.2, type=float, help="Epsilon clip")
-    parser.add_argument("-ga", "--gamma", default=0.99, type=int, help="Gamma")
-    parser.add_argument("-lra", "--lr_actor", default=0.001, type=float, help="Learning rate actor")
-    parser.add_argument("-lrc", "--lr_critic", default=0.001, type=float, help="Learning rate critic")
+    parser.add_argument("-ga", "--gamma", default=1, type=int, help="Gamma")
+    parser.add_argument("-lra", "--lr_actor", default=0.0001, type=float, help="Learning rate actor")
+    parser.add_argument("-lrc", "--lr_critic", default=0.003, type=float, help="Learning rate critic")
 
     args = parser.parse_args(args=[])
 
@@ -104,7 +104,7 @@ if __name__ == '__main__':
     print_freq = max_ep_len * 4  # print avg reward in the interval (in num timesteps)
     log_freq = max_ep_len * 2  # log avg reward in the interval (in num timesteps)
     save_model_freq = int(2e3)  # save model frequency (in num timesteps)
-    update_timestep = max_ep_len * 20  # update policy every n timesteps
+    update_timestep = max_ep_len * 50  # update policy every n timesteps
     print("training environment name : " + env_name)
 
     random_seed = 0
