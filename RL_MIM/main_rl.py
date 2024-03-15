@@ -39,15 +39,15 @@ if __name__ == '__main__':
     parser.add_argument("-spd", "--support_decay", default=0.9999, type=float,
                         help="support factor decay")
 
-    parser.add_argument("-tr", "--training", default=True, type=bool,
+    parser.add_argument("-tr", "--training", default=False, type=bool,
                         help="Training Good Nodes")
 
     # RL-Agent
     parser.add_argument("-ep", "--epochs", default=40, type=int, help="K-epochs")
     parser.add_argument("-eps", "--eps_clip", default=0.2, type=float, help="Epsilon clip")
     parser.add_argument("-ga", "--gamma", default=1, type=int, help="Gamma")
-    parser.add_argument("-lra", "--lr_actor", default=0.0001, type=float, help="Learning rate actor")
-    parser.add_argument("-lrc", "--lr_critic", default=0.003, type=float, help="Learning rate critic")
+    parser.add_argument("-lra", "--lr_actor", default=0.004, type=float, help="Learning rate actor")
+    parser.add_argument("-lrc", "--lr_critic", default=0.004, type=float, help="Learning rate critic")
 
     args = parser.parse_args(args=[])
 
@@ -72,10 +72,11 @@ if __name__ == '__main__':
     adj_matrix = nx.to_scipy_sparse_array(deepcopy(multiplex), dtype=np.float32, format='csr')
     spread, after_activations = diffusion_evaluation(adj_matrix, seed_set, diffusion=args.diffusion_model)
 
-    print("Huyen", len(multiplex.nodes))
+    # print("Huyen", len(multiplex.nodes))
+    model_path = "RL_MIM/model.pkl"
     if args.training:
         print("Training")
-        model_path = "model.pkl"
+        model_path = "RL_MIM/model.pkl" ## change your path to finding good node model here
         training_good_nodes(deepcopy(multiplex), graphs, budget_layers, model_path=model_path)
 
     good_nodes = finding_good_nodes(model_path, deepcopy(multiplex))
