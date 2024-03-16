@@ -26,11 +26,11 @@ class PPO:
 
         self.MseLoss = nn.MSELoss()
 
-    def select_action(self, state, time_step, best_found_seed_t, mask, mode='duplicate'):
+    def select_action(self, state, time_step, best_found_action_t, mask, mode='duplicate'):
         if mode == 'duplicate':
             with torch.no_grad():
                 state = torch.FloatTensor(state).to(self.device)
-                action, action_logprob, state_val = self.policy_old.act(state, time_step, best_found_seed_t, mask, mode)
+                action, action_logprob, state_val = self.policy_old.act(state, time_step, best_found_action_t, mask, mode)
 
             self.buffer.states.append(state)
             self.buffer.actions.append(action)
@@ -39,7 +39,7 @@ class PPO:
         elif mode == 'no_duplicate':
             with torch.no_grad():
                 state = torch.FloatTensor(state).to(self.device)
-                action, action_logprob, state_val = self.policy_old.act(state, time_step, best_found_seed_t, mask, mode)
+                action, action_logprob, state_val = self.policy_old.act(state, time_step, best_found_action_t, mask, mode)
 
         return action.item()
 
@@ -84,7 +84,7 @@ class PPO:
             surr2 = torch.clamp(ratios, 1 - self.eps_clip, 1 + self.eps_clip) * advantages
 
             # final loss of clipped objective PPO
-            loss = -torch.min(surr1, surr2) + self.MseLoss(state_values, rewards) - 0.01 * dist_entropy
+            loss = -torch.min(surr1, surr2) + self.MseLoss(state_values, rewards) - 0.001 * dist_entropy
 
             # take gradient step
             self.optimizer.zero_grad()

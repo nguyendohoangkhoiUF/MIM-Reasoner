@@ -41,34 +41,35 @@ class ActorCritic(nn.Module):
     def forward(self):
         raise NotImplementedError
 
-    def act(self, state, time_step, best_found_seed_t, mask, mode='duplicate'):
+    def act(self, state, time_step, best_found_action_t, mask, mode='duplicate'):
         if mode == 'duplicate':
             action_probs = self.actor(state)
             dist = Categorical(action_probs)
             action = dist.sample()
-            if np.random.rand() < min(time_step / self.max_training_timesteps, 0.8):
-                found_seed_t = copy.deepcopy(best_found_seed_t)
+            if np.random.rand() > max(time_step / self.max_training_timesteps, 0.7):
+                found_seed_t = copy.deepcopy(best_found_action_t)
                 action = torch.tensor(copy.deepcopy(found_seed_t)).to(self.device)
+                #print(action_probs, action, found_seed_t )
             action_logprob = dist.log_prob(action)
             state_val = self.critic(state)
         elif mode == 'no_duplicate':
-            # action_probs = self.actor(state)
-            # action_probs = torch.add(action_probs, 0.000000000001)
-            # mask_tensor = torch.tensor(mask).to(self.device)
-            # action_probs = action_probs.masked_fill(mask_tensor > 0, 0)
-            # action_probs = action_probs / action_probs.sum()
-            # dist = Categorical(action_probs)
-            # action = dist.sample()
-            # action_logprob = dist.log_prob(action)
-            # state_val = self.critic(state)
             action_probs = self.actor(state)
+            action_probs = torch.add(action_probs, 0.000000000001)
+            mask_tensor = torch.tensor(mask).to(self.device)
+            action_probs = action_probs.masked_fill(mask_tensor > 0, 0)
+            action_probs = action_probs / action_probs.sum()
             dist = Categorical(action_probs)
             action = dist.sample()
-            if np.random.rand() < min(time_step / self.max_training_timesteps, 0.8):
-                found_seed_t = copy.deepcopy(best_found_seed_t)
-                action = torch.tensor(copy.deepcopy(found_seed_t)).to(self.device)
             action_logprob = dist.log_prob(action)
             state_val = self.critic(state)
+            # action_probs = self.actor(state)
+            # dist = Categorical(action_probs)
+            # action = dist.sample()
+            # if np.random.rand() < min(time_step / self.max_training_timesteps, 0.8):
+            #     found_seed_t = copy.deepcopy(best_found_seed_t)
+            #     action = torch.tensor(copy.deepcopy(found_seed_t)).to(self.device)
+            # action_logprob = dist.log_prob(action)
+            # state_val = self.critic(state)
 
         return action.detach(), action_logprob.detach(), state_val.detach()
 

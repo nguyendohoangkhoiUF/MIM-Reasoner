@@ -81,10 +81,9 @@ if __name__ == '__main__':
     good_nodes = finding_good_nodes(model_path, deepcopy(multiplex))
     for graph in graphs:
         good_nodes.append(list(graph.nodes())[0])
+
     good_nodes.extend(seed_set)
     good_nodes = sorted(set(good_nodes))
-
-    print("Len Good Nodes: ", len(good_nodes))
 
     for node in multiplex.nodes():
         multiplex.nodes[node]['attribute'] = 1.0
@@ -93,6 +92,16 @@ if __name__ == '__main__':
                            diffusion=args.diffusion_model)
     adj_matrix = nx.to_scipy_sparse_array(deepcopy(multiplex), dtype=np.float32, format='csr')
     spread, after_activations = diffusion_evaluation(adj_matrix, seed_set, diffusion=args.diffusion_model)
+
+    num_to_remove = len(good_nodes) // 3
+    items_to_remove = random.sample(good_nodes, num_to_remove)
+    good_nodes = [item for item in good_nodes if item not in items_to_remove]
+    good_nodes.extend(seed_set)
+    good_nodes = sorted(set(good_nodes))
+
+    print("Len Good Nodes: ", len(good_nodes))
+    # Chuyển đổi set thành dictionary
+    good_nodes = {i: item for i, item in enumerate(good_nodes)}
 
     ####### initialize environment hyperparameters ######
     env_name = "MIM_Reasoner"
@@ -111,7 +120,7 @@ if __name__ == '__main__':
     early_stopping = True
     # initialize a PPO agent
     state_dim = budget + 1
-    action_dim = len(multiplex.nodes)
+    action_dim = len(good_nodes)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     ppo_agent = PPO(state_dim, action_dim, args.lr_actor, args.lr_critic, args.gamma, args.epochs, args.eps_clip,
                     max_training_timesteps, device=device)
@@ -177,10 +186,10 @@ if __name__ == '__main__':
         state, mask, done = env.reset('nothing')
         for t in range(0, max_ep_len):
             # select action with policy
-            action = ppo_agent.select_action(state, time_step, copy.deepcopy(best_found_seed[t - 1]), mask, 'no_duplicate')
+            action = ppo_agent.select_action(state, time_step, copy.deepcopy(best_found_action[t - 1]), mask, 'no_duplicate')
             state, reward, done, mask, spread = env.step(action)
             # saving reward and is_terminals
-            predicted_seed.append(action)
+            predicted_seed.append(good_nodes[action])
         best_spread_rl = spread
         return predicted_seed, best_spread_rl
 
@@ -188,18 +197,24 @@ if __name__ == '__main__':
     # training loop
     predicted_seed = []
     success_rate = 0
+    key_good_node_list = list(good_nodes.keys())
+    val_good_node_list = list(good_nodes.values())
+    best_found_action = []
+
+    for value in env.best_action:
+        # print key with val 100
+        position = val_good_node_list.index(value)
+        best_found_action.append(key_good_node_list[position])
 
     while time_step <= max_training_timesteps and early_stopping == True:
 
         state, mask, done = env.reset('nothing')
         spread_CELF = env.maximum_reward
         current_ep_reward = 0
-        best_found_seed = env.best_action
 
         for t in range(1, max_ep_len + 1):
-
             # select action with policy
-            action = ppo_agent.select_action(state, time_step, copy.deepcopy(best_found_seed[t - 1]), mask, 'duplicate')
+            action = ppo_agent.select_action(state, time_step, copy.deepcopy(best_found_action[t-1]), mask, 'duplicate')
             state, reward, done, mask, spread = env.step(action)
 
             # saving reward and is_terminals
@@ -212,7 +227,7 @@ if __name__ == '__main__':
             if time_step % update_timestep == 0:
                 print("Update model !!")
                 predicted_seed, best_spread_rl = evaluate_performance(predicted_seed)
-                ppo_agent.update(predicted_seed, best_found_seed)
+                ppo_agent.update(predicted_seed, best_found_action)
                 predicted_seed = []
 
             # log in logging file
@@ -238,10 +253,10 @@ if __name__ == '__main__':
                       " \t RL Best Found Seed : {} \t "
                       " Support_factor : {}".format(i_episode, time_step, print_avg_reward, best_spread_rl,
                                                     predicted_seed,
-                                                    best_found_seed,
+                                                    env.best_action,
                                                     round(env.support_factor, 2)))
 
-                if predicted_seed == best_found_seed:
+                if predicted_seed == best_found_action:
                     if early_stopping:
                         print("Early Stopping!")
                         early_stopping = False
@@ -282,7 +297,8 @@ if __name__ == '__main__':
     save_time = time.time() - start_time
 
     adj_matrix = nx.to_scipy_sparse_array(deepcopy(multiplex), dtype=np.float32, format='csr')
-    spread, after_activations = diffusion_evaluation(adj_matrix, predicted_seed, diffusion=args.diffusion_model)
+    # spread, after_activations = diffusion_evaluation(adj_matrix, predicted_seed, diffusion=args.diffusion_model)
+    predicted_seed, spread = evaluate_performance(predicted_seed)
 
     print("Time", save_time)
     print("Seed set", seed_set)

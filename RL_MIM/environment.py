@@ -31,7 +31,7 @@ class GraphDreamerEnv(object):
         if mode == 'change_graph':
             self.combined_graph = None
 
-        self.mask = torch.ones(len(self.combined_graph.nodes))
+        self.mask = torch.ones(len(self.good_nodes))
         for node_x in self.good_nodes:
             self.mask[node_x] = 0
 
@@ -54,8 +54,10 @@ class GraphDreamerEnv(object):
         self.state[self.num_step] = action
         self.state[-1] = self.num_step
         self.num_step += 1
-
-        self.seed_node.add(action)
+        penalty = 0
+        if self.good_nodes[action] in list(self.seed_node):
+            penalty = 10
+        self.seed_node.add(self.good_nodes[action])
         S = list(self.seed_node)
 
         adj_matrix = nx.to_scipy_sparse_array(self.combined_graph, dtype=np.float32, format='csr')
@@ -76,7 +78,8 @@ class GraphDreamerEnv(object):
         #         self.reward += 0.1 * self.num_nodes_graph
         # else:
         # if self.num_step == self.budget:
-        self.reward = current_spread- self.previous_spread
+        self.reward = current_spread - self.previous_spread - penalty
+
         self.previous_spread = current_spread
         # if current_   spread >= self.best_spread_of_this_step[
         #     self.num_step - 1] and action not in self.best_action_so_far[
