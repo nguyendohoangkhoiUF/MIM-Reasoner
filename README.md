@@ -1,3 +1,20 @@
+MIM-Reasoner: Learning with Theoretical Guarantees for Multiplex Influence Maximization
+
+Nguyen Do, Tanmoy Chowdhury, Chen Ling, Liang Zhao, My T. Thai
+
+Multiplex influence maximization (MIM) asks us to identify a set of seed users such as to maximize the expected number of influenced users in a multiplex network. MIM has been one of central research topics, especially in nowadays social networking landscape where users participate in multiple online social networks (OSNs) and their influences can propagate among several OSNs simultaneously. Although there exist a couple combinatorial algorithms to MIM, learning-based solutions have been desired due to its generalization ability to heterogeneous networks and their diversified propagation characteristics. In this paper, we introduce MIM-Reasoner, coupling reinforcement learning with probabilistic graphical model, which effectively captures the complex propagation process within and between layers of a given multiplex network, thereby tackling the most challenging problem in MIM. We establish a theoretical guarantee for MIM-Reasoner as well as conduct extensive analyses on both synthetic and real-world datasets to validate our MIM-Reasoner's performance.
+
+Link paper: https://arxiv.org/abs/2402.16898
+
+`@article{do2024mimreasoner,
+  title   = {MIM-Reasoner: Learning with Theoretical Guarantees for Multiplex Influence Maximization},
+  author  = {Nguyen Do and Tanmoy Chowdhury and Chen Ling and Liang Zhao and My T. Thai},
+  year    = {2024},
+  journal = {arXiv preprint arXiv: 2402.16898}
+}`
+
+Please CITE our paper whenever our model implementation is used to help produce published results or incorporated into other software.
+
 ### 1. Install necessary libraries
 
 `pip install -r requirements.txt`
