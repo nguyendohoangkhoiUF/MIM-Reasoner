@@ -39,7 +39,7 @@ class GraphDreamerEnv(object):
         self.seed_node = set()
         self.done = False
         self.num_step = 0
-        self.reward = 1
+        self.reward = 0
         self.previous_spread = 0
         self.activation_node = [[] for _ in range(self.mc)]
         return self.state, self.mask, self.done
@@ -75,8 +75,8 @@ class GraphDreamerEnv(object):
         #     if action == self.best_action[self.num_step - 1]:
         #         self.reward += 0.1 * self.num_nodes_graph
         # else:
-        #if self.num_step == self.budget:
-        self.reward = current_spread - self.previous_spread
+        # if self.num_step == self.budget:
+        self.reward = current_spread- self.previous_spread
         self.previous_spread = current_spread
         # if current_   spread >= self.best_spread_of_this_step[
         #     self.num_step - 1] and action not in self.best_action_so_far[

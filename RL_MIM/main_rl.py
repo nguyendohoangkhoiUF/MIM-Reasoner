@@ -99,7 +99,7 @@ if __name__ == '__main__':
     env = GraphDreamerEnv(multiplex, budget, seed_set, good_nodes, args.support_decay, spread, 1)
     max_ep_len = budget  # max timesteps in one episode
     max_training_timesteps = int(
-        len(multiplex.nodes) * 250)  # break training loop if timeteps > max_training_timesteps
+        len(multiplex.nodes) * 500)  # break training loop if timeteps > max_training_timesteps
 
     print_freq = max_ep_len * 4  # print avg reward in the interval (in num timesteps)
     log_freq = max_ep_len * 2  # log avg reward in the interval (in num timesteps)
@@ -175,9 +175,9 @@ if __name__ == '__main__':
 
     def evaluate_performance(predicted_seed):
         state, mask, done = env.reset('nothing')
-        for t in range(1, max_ep_len + 1):
+        for t in range(0, max_ep_len):
             # select action with policy
-            action = ppo_agent.select_action(state, 1, 1, mask, 'no_duplicate')
+            action = ppo_agent.select_action(state, time_step, copy.deepcopy(best_found_seed[t - 1]), mask, 'no_duplicate')
             state, reward, done, mask, spread = env.step(action)
             # saving reward and is_terminals
             predicted_seed.append(action)
@@ -282,7 +282,7 @@ if __name__ == '__main__':
     save_time = time.time() - start_time
 
     adj_matrix = nx.to_scipy_sparse_array(deepcopy(multiplex), dtype=np.float32, format='csr')
-    spread, after_activations = diffusion_evaluation(adj_matrix, seed_set, diffusion=args.diffusion_model)
+    spread, after_activations = diffusion_evaluation(adj_matrix, predicted_seed, diffusion=args.diffusion_model)
 
     print("Time", save_time)
     print("Seed set", seed_set)

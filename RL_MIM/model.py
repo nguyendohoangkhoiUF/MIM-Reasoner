@@ -19,11 +19,11 @@ class ActorCritic(nn.Module):
         self.actor = nn.Sequential(
             nn.Linear(state_dim, 512),
             nn.Tanh(),
-            nn.Linear(512, 256),
+            nn.Linear(512, 512),
             nn.Tanh(),
-            nn.Linear(256, 256),
+            nn.Linear(512, 512),
             nn.Tanh(),
-            nn.Linear(256, action_dim),
+            nn.Linear(512, action_dim),
             nn.Softmax(dim=-1)
         )
 
@@ -31,11 +31,11 @@ class ActorCritic(nn.Module):
         self.critic = nn.Sequential(
             nn.Linear(state_dim, 512),
             nn.Tanh(),
-            nn.Linear(512, 256),
+            nn.Linear(512, 512),
             nn.Tanh(),
-            nn.Linear(256, 256),
+            nn.Linear(512, 512),
             nn.Tanh(),
-            nn.Linear(256, 1)
+            nn.Linear(512, 1)
         )
 
     def forward(self):
@@ -52,13 +52,21 @@ class ActorCritic(nn.Module):
             action_logprob = dist.log_prob(action)
             state_val = self.critic(state)
         elif mode == 'no_duplicate':
+            # action_probs = self.actor(state)
+            # action_probs = torch.add(action_probs, 0.000000000001)
+            # mask_tensor = torch.tensor(mask).to(self.device)
+            # action_probs = action_probs.masked_fill(mask_tensor > 0, 0)
+            # action_probs = action_probs / action_probs.sum()
+            # dist = Categorical(action_probs)
+            # action = dist.sample()
+            # action_logprob = dist.log_prob(action)
+            # state_val = self.critic(state)
             action_probs = self.actor(state)
-            action_probs = torch.add(action_probs, 0.000000000001)
-            mask_tensor = torch.tensor(mask).to(self.device)
-            action_probs = action_probs.masked_fill(mask_tensor > 0, 0)
-            action_probs = action_probs / action_probs.sum()
             dist = Categorical(action_probs)
             action = dist.sample()
+            if np.random.rand() < min(time_step / self.max_training_timesteps, 0.8):
+                found_seed_t = copy.deepcopy(best_found_seed_t)
+                action = torch.tensor(copy.deepcopy(found_seed_t)).to(self.device)
             action_logprob = dist.log_prob(action)
             state_val = self.critic(state)
 
