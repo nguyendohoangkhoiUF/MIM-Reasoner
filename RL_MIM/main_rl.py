@@ -93,7 +93,7 @@ if __name__ == '__main__':
     adj_matrix = nx.to_scipy_sparse_array(deepcopy(multiplex), dtype=np.float32, format='csr')
     spread, after_activations = diffusion_evaluation(adj_matrix, seed_set, diffusion=args.diffusion_model)
 
-    num_to_remove = len(good_nodes) // 3
+    num_to_remove = len(good_nodes) // 5
     items_to_remove = random.sample(good_nodes, num_to_remove)
     good_nodes = [item for item in good_nodes if item not in items_to_remove]
     good_nodes.extend(seed_set)
