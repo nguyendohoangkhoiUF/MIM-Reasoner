@@ -47,3 +47,18 @@ parser.add_argument("-dm", "--diffusion_model", default="LT", type=str,
                     help="one of: {}".format(", ".join(sorted(diffusion))))`
                     
 In the code snippet above, the diffusion_model parameter can be set to one of the following options: "IC" (Independent Cascade), "LT" (Linear Threshold), or "SIS" (Susceptible-Infected-Susceptible). You can change the default value to the desired diffusion model type or provide it as a command-line argument when running the code.
+
+### Where are the results? 
+
+After running each algorithm with the same dataset, you can find the results in the "Output" folder. For example, if you used the dataset "Xenopus_mean_LT50" with the Linear Threshold model, you would obtain the result in the file "Output/Xenopus_mean_LT50.csv".
+
+The result file would have the following format:
+
+`algorithm,Nodes,Edges,Layer,Budget,Diffusion,Seed set,Spread,Time
+ISF,461,584,5,5,LT,"[329, 1, 61, 378, 86, 435, 25, 26, 85, 139, 158, 3, 246, 36, 79, 322, 451, 105, 203, 208, 268, 317, 95]",180.0,7.30393123626709
+KSN,461,584,5,5,LT,"[1, 3, 1, 97, 329, 1, 61, 378, 86, 435, 25, 26, 85, 139, 158, 36, 79, 322, 1, 86, 26, 25, 139]",145.0,13.688209533691406
+RL_MIM,461,584,5,5,LT,"[1, 3, 97, 63, 329, 378, 61, 86, 85, 26, 435, 139, 25, 158, 36, 79, 451, 322, 203, 208, 105, 365, 34]",176.0,54.20702815055847`
+
+In the result file, each row represents the result of a specific algorithm run. The columns provide details such as the algorithm name, number of nodes, number of edges, layer information, budget, diffusion model, seed set used, spread achieved, and the execution time.
+ 
+
