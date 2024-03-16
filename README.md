@@ -11,6 +11,18 @@
 `cd KSN`
 `python main_ksn.py`
 
+### 3. Creating Synthetic Multiplex Network
+To create a synthetic multiplex network, you can navigate to the "createData.py" file in the "Synthetic_Dataset" directory and follow the instructions provided in the command line. If you wish to change the percentage of overlapping users in the synthetic network, you can modify the following code:
+
+`parser.add_argument("-o", "--overlapping_user", default=0.3, type=float, help="one of: {}".format(", ".join(str(sorted(overlap)))))`
+
+In this code snippet, the "overlapping_user" variable represents the default percentage of overlapping users, which is set to 0.3. You can change this value to your desired percentage by modifying the default parameter.
+
+### 4. Real Multiplex Network
+
+There are some real datasets available in the "Real_Dataset" folder. The MIM-Reasoner is currently being tested on Xenopus. You can find other multiplex network datasets by visiting the following link: https://manliodedomenico.com/data.php. To download a dataset, you can access the link provided and reformat it to match our desired format, such as an adjacency matrix. Then the code should work correctly.
+
+
 ### 4. Run the MIM-Reasoner 
 `cd RL_MIM`
 `python main_rl.py`
@@ -26,4 +38,4 @@ In this code snippet, the seed_rate variable represents the available options fo
 
 `parser.add_argument("-tr", "--training", default=False, type=bool, help="Training Good Nodes")`
 
-By changing the value of the default parameter from False to True, you can enable the retraining of the GCN to find a good node set. This allows the algorithm to adapt and optimize the selection of nodes based on the specific problem and budget size.
+By changing the value of the default parameter from False to True, you can enable the retraining of the GCN to find a good node-set. This allows the algorithm to adapt and optimize the selection of nodes based on the specific problem and budget size.
