@@ -39,3 +39,11 @@ In this code snippet, the seed_rate variable represents the available options fo
 `parser.add_argument("-tr", "--training", default=False, type=bool, help="Training Good Nodes")`
 
 By changing the value of the default parameter from False to True, you can enable the retraining of the GCN to find a good node-set. This allows the algorithm to adapt and optimize the selection of nodes based on the specific problem and budget size.
+
+** You can also modify the propagation model type by adjusting the hyperparameter in the following code:
+
+`diffusion = ['IC', 'LT', 'SIS']
+parser.add_argument("-dm", "--diffusion_model", default="LT", type=str,
+                    help="one of: {}".format(", ".join(sorted(diffusion))))`
+                    
+In the code snippet above, the diffusion_model parameter can be set to one of the following options: "IC" (Independent Cascade), "LT" (Linear Threshold), or "SIS" (Susceptible-Infected-Susceptible). You can change the default value to the desired diffusion model type or provide it as a command-line argument when running the code.
