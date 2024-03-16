@@ -24,7 +24,7 @@ if __name__ == '__main__':
                         help="one of: {}".format(", ".join(sorted(mode))))
     args = parser.parse_args(args=[])
 
-    file_path = '../data/' + args.dataset + '_mean_' + args.diffusion_model + str(10*args.seed_rate) + '.SG'
+    file_path = '../Real_Dataset/' + args.dataset + '_mean_' + args.diffusion_model + str(10*args.seed_rate) + '.SG'
     with open(file_path, 'rb') as f:
         graphs, multiplex = pickle.load(f)
 

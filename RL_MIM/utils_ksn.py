@@ -208,7 +208,7 @@
 #             SPREAD: resulting spread
 #             timelapse: time for each iteration
 #             LOOKUPS: number of spread calculations
-#             data: Collection of node status
+#             Real_Dataset: Collection of node status
 
 #     """
 
@@ -220,7 +220,7 @@
 
 #     start_time = time.time()
 #     marg_gain = []
-#     data = None
+#     Real_Dataset = None
 
 #     for node in tqdm(graph.nodes()):
 #         adj_matrix = nx.to_scipy_sparse_array(combined_graph, dtype=np.float32, format='csr')
@@ -280,4 +280,4 @@
 #             LOOKUPS.append(node_lookup)
 #             timelapse.append(time.time() - start_time)
 
-#     return S, SPREAD, timelapse, LOOKUPS, data
+#     return S, SPREAD, timelapse, LOOKUPS, Real_Dataset

@@ -66,7 +66,7 @@ def celf(graph, k, diffusion='LT'):
             SPREAD: resulting spread
             timelapse: time for each iteration
             LOOKUPS: number of spread calculations
-            data: Collection of node status
+            Real_Dataset: Collection of node status
 
     """
 
