@@ -14,3 +14,7 @@
 ### 4. Run the MIM-Reasoner 
 `cd RL_MIM`
 `python main_rl.py`
+
+If you want to change budget size, you can change in here:
+`seed_rate = [1, 5, 10, 20]
+parser.add_argument("-sp", "--seed_rate", default=5, type=int, help="one of: {}".format(", ".join(str(sorted(seed_rate)))))`
