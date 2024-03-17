@@ -1,4 +1,4 @@
-MIM-Reasoner: Learning with Theoretical Guarantees for Multiplex Influence Maximization (AISTATS 2024)
+### MIM-Reasoner: Learning with Theoretical Guarantees for Multiplex Influence Maximization (AISTATS 2024)
 
 Nguyen Do, Tanmoy Chowdhury, Chen Ling, Liang Zhao, My T. Thai
 
