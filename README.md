@@ -79,3 +79,6 @@ RL_MIM,461,584,5,5,LT,"[1, 3, 97, 63, 329, 378, 61, 86, 85, 26, 435, 139, 25, 15
 In the result file, each row represents the result of a specific algorithm run. The columns provide details such as the algorithm name, number of nodes, number of edges, layer information, budget, diffusion model, seed set used, spread achieved, and the execution time.
  
 
+
+
+Acknowledgment: huyenntn@ptit.edu.vn
